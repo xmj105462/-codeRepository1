@@ -24,6 +24,9 @@ constexpr int KEY_DOWN=	80;
 constexpr int KEY_LEFT	=75;
 constexpr int KEY_SPACE=	32;
 constexpr int INIT_SPEED = 500;
+constexpr int G_VISIT_Y = 30;
+constexpr int G_VISIT_X = 15;
+constexpr int MIN_SPEED = 50;
 typedef enum {
 	BLOCK_UP,//0
 	BLOCK_RIGHT,//1
@@ -66,8 +69,8 @@ int blockArr[BLOCK_DIR * 5][BLOCK_HEIGHT][BLOCK_WIDTH] = { { 0,0,0,0,0,  0,0,1,0
 { 0,0,0,0,0,	0,0,1,0,0,	0,1,1,0,0,	0,1,0,0,0,	0,0,0,0,0 }
 };
 int color[BRICK_COUNT] = { YELLOW,GREEN,LIGHTMAGENTA,RED,CYAN };
-int g_visit[30][15] = {};//游戏主界面方块检测,数组元素全部初始化为0
-int fixedColor[30][15] = {};
+int g_visit[G_VISIT_Y][G_VISIT_X] = {};//游戏主界面方块检测,数组元素全部初始化为0
+int fixedColor[G_VISIT_Y][G_VISIT_X] = {};
 //int clearIndex;
 
 void welcome() {
@@ -173,9 +176,11 @@ void  newBlock() {
 	downBlock();
 }
 int disTab[size(g_visit)] = {};//有方块的最顶端标记
+short minX= BLOCK_START_X + 3;
+short minY= BLOCK_START_Y + 3;
 void fixedBlock(short x, short y, short dir) {//方块固定后数组计算
-	short x2 = (x - 30) / BRICK_SIZE;
-	short y2 = (y - 30) / BRICK_SIZE;
+	short x2 = (x - minX) / BRICK_SIZE;
+	short y2 = (y -minY ) / BRICK_SIZE;
 	
 	for (short j = 0; j <5; j++) {
 
@@ -192,13 +197,13 @@ void fixedBlock(short x, short y, short dir) {//方块固定后数组计算
 
 bool touchCheck(short x, short y, short dir,move_dir_t movDir) {//与趋势向下左右的方块比较
 	short a; bool moved = 0;
-	short x2 = (x - 30) / BRICK_SIZE;
-	short y2 = (y - 30) / BRICK_SIZE;
+	short x2 = (x - minX) / BRICK_SIZE;
+	short y2 = (y - minY) / BRICK_SIZE;
 	if (movDir == MOVE_DOWN) {
 		for (short i = 0; i < 5; i++) {
 			for (short j = 0; j < 5; j++) {
 				if (blockArr[BlockIndex * 4 + dir][j][i] == 1 &&
-					((y2 + j) >= 29 || g_visit[y2 + j+1][x2 + i] == 1)) {//
+					((y2 + j) >= G_VISIT_Y-1 || g_visit[y2 + j+1][x2 + i] == 1)) {//
 					mciSendString(_T("play hinderSound.mp3 "), 0, 0, 0);//
 					moved = 1;
 				}
@@ -220,7 +225,7 @@ bool touchCheck(short x, short y, short dir,move_dir_t movDir) {//与趋势向下左右
 				for (short j = 0; j < 5; j++) {
 					for (short i = 0; i < 5; i++) {
 						a = g_visit[y2 + j][x2 + i + 1];
-						if (blockArr[BlockIndex * 4 + dir][j][i] == 1 && (a == 1 || (x2 + i)>=15)) {
+						if (blockArr[BlockIndex * 4 + dir][j][i] == 1 && (a == 1 || (x2 + i)>=G_VISIT_X)) {
 							mciSendString(_T("play hinderSound.mp3 "), 0, 0, 0);//播放音乐
 							moved = 1;
 						}
@@ -233,8 +238,8 @@ bool touchCheck(short x, short y, short dir,move_dir_t movDir) {//与趋势向下左右
 bool rotatable(short x, short y, block_dir_t dir) {
 	short id = BlockIndex * 4 + dir;
 			
-	short x2 = (x - 30) / BRICK_SIZE;
-	short y2 = (y - 30) / BRICK_SIZE;
+	short x2 = (x - minX) / BRICK_SIZE;
+	short y2 = (y - minY) / BRICK_SIZE;
 
 			if (touchCheck(x, y, dir,MOVE_DOWN )) {
 				return 0;
@@ -242,7 +247,7 @@ bool rotatable(short x, short y, block_dir_t dir) {
 			for (short i = 0; i < 5; i++) {
 				for (short j = 0; j < 5; j++) {
 					if (blockArr[id][j][i] == 1 &&
-						(x2 + i < 0 || x2 + i >= 15 || g_visit[y2 + j][x2 + i] == 1)) {
+						(x2 + i < 0 || x2 + i >= G_VISIT_X || g_visit[y2 + j][x2 + i] == 1)) {//左右比较
 						return 0;
 					}
 				}
@@ -258,7 +263,7 @@ bool overCheck(short x, short y, short dir) {//如果顶部满了就挂了
 	int a; bool over = 0;
 	for (short j = 0; j < 5; j++) {
 		for (short i = 0; i < 5; i++) {
-			a = g_visit[2][(x - BLOCK_START_X) / 20 + i];
+			a = g_visit[2][(x - BLOCK_START_X) / BRICK_SIZE + i];
 			if (blockArr[BlockIndex * 4 + dir][j][i] == 1 && a == 1) {				
 				return 1;
 			}
@@ -271,12 +276,12 @@ void down(short j);
 void disappear() {//消行
 	
 	short count = 0;   int j ;   int i;
-	for ( j = 29; j >=0 ;j--) {
-		if (count == 15) {//判断有没满
+	for ( j = G_VISIT_Y-1; j >=0 ;j--) {
+		if (count == G_VISIT_X) {//判断有没满
 			down(j + 1);//消行后下降
 			mciSendString(_T("play eliminate.mp3 "), 0, 0, 0);//播放音乐
 			//setcolor(BLACK);
-			settextstyle(23, 0, _T("(微软雅黑)"));
+			settextstyle(BRICK_SIZE+3, 0, _T("(微软雅黑)"));
 			/*void settextstyle(int nHeight, int nWidth, LPCTSTR lpszFace, int nEscapement, 
 			int nOrientation, int nWeight, bool bItalic, bool bUnderline, bool bStrikeOut); */										  										
 			for (short c1 = 0; c1 < 2;c1++) {
@@ -300,7 +305,7 @@ void disappear() {//消行
 		}
 	}	
 }
-inline void wait(short interval) {
+inline void wait(short interval) {//下降速度，按键即时响应
 	int count = interval / 10;
 	for (short i = 0; i < count; i++) {
 		Sleep(10);
@@ -318,14 +323,14 @@ void down(short _j) {//消行后的下降
 			if (g_visit[j-1][i]) {
 				setcolor(fixedColor[j-1][i]);
 				settextstyle(BRICK_SIZE+3, 0, _T("(微软雅黑)"));				
-					outtextxy(i * BRICK_SIZE + 30, j * BRICK_SIZE + 30, _T("■"));//30是起始坐标,画的y轴要比底下高20
+					outtextxy(i * BRICK_SIZE + minX, j * BRICK_SIZE + minY, _T("■"));//30是起始坐标,画的y轴要比底下高20
 					g_visit[j][i] = g_visit[j - 1][i]; fixedColor[j][i] = fixedColor[j - 1][i];
 			}
 			else {
 				setcolor(BLACK);
 				settextstyle(BRICK_SIZE, 0, _T("(微软雅黑)"));
 				//for (unsigned int c = 0; c < size(g_visit[1]); c++) {//先消除满的那一行
-					outtextxy(i * BRICK_SIZE + 30, (j)* BRICK_SIZE + 30, _T("■"));//30是起始坐标
+					outtextxy(i * BRICK_SIZE + minX, (j)* BRICK_SIZE + minY, _T("■"));//30是起始坐标
 					g_visit[j][i] = 0; //把消行数组清0，再把上一行赋给消行
 					fixedColor[j][i] = 0; 
 				//}
@@ -353,7 +358,7 @@ void keyCheck(block_dir_t nextDir, short*down_x, short*down_y, short key,unsigne
 			*down_x += BRICK_SIZE;
 		}break;
 	case KEY_DOWN://下
-		*sp = 50;
+		*sp = MIN_SPEED;
 		break;
 	case KEY_LEFT://左
 		if (!touchCheck(*down_x - BRICK_SIZE, *down_y + BRICK_SIZE, dir, MOVE_LEFT)) {//判断趋势
@@ -371,7 +376,7 @@ void downBlock()
 	 unsigned short* sp = &speed;
 	 disappear();
 	 speed = INIT_SPEED - rank1 * 50;
-	 if (speed<50) {
+	 if (speed<MIN_SPEED) {
 		 speed = 100;
 	 }
 	 if (overCheck(down_x, down_y, dir)) {//游戏结束
